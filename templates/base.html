@@ -1,29 +1,39 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hoof Hearted 🏇</title>
     <link
       rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+      href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
     />
     <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
     <style>
       /* ── HTMX spinner ── */
       .htmx-indicator { display: none; }
-      .htmx-request .htmx-indicator,
-      .htmx-request.htmx-indicator { display: block; }
+      .htmx-request .htmx-indicator { display: block; }
 
       /* ── Global box model fix ── */
       *, *::before, *::after { box-sizing: border-box; }
 
       /* ── Prevent anything from overflowing the viewport ── */
       body { overflow-x: hidden; }
-      .container { max-width: 100%; padding-left: 1rem; padding-right: 1rem; }
 
-      /* ── Textarea fills its column, never wider ── */
-      textarea { width: 100%; max-width: 100%; resize: vertical; }
+      /* ── Ensure details/form/section are proper block containers ── */
+      section, details, form { display: block; width: 100%; }
+
+      /* ── Textarea: monospace, full width, vertically resizable only ── */
+      textarea#race_data {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        resize: vertical;
+        font-family: monospace;
+        font-size: 0.82rem;
+        line-height: 1.5;
+      }
 
       /* ── Tables: scroll horizontally inside their container ── */
       #results table {
@@ -43,9 +53,8 @@
       #results h3 { font-size: 0.9rem; }
       #results h4, #results h5, #results h6 { font-size: 0.85rem; }
 
-      /* ── Results article shouldn't exceed viewport ── */
-      #results article { overflow-x: hidden; }
-      #results { margin-top: 2rem; }
+      /* ── Results spacing ── */
+      #results { margin-top: 2rem; overflow-x: hidden; }
 
       /* ── Buttons full-width on small screens ── */
       @media (max-width: 600px) {
@@ -54,11 +63,11 @@
     </style>
   </head>
   <body>
-    <main class="container">
-      <header>
-        <h1>🏇 Hoof Hearted</h1>
-        <p>AI-powered horse racing handicapper</p>
-      </header>
+    <header>
+      <h1>🏇 Hoof Hearted</h1>
+      <p>AI-powered horse racing handicapper</p>
+    </header>
+    <main>
       {% block content %}{% endblock %}
     </main>
   </body>
