@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+  <details id="race-input" open>
+    <summary><strong>Paste your race program data</strong> <small>— copy/paste the raw text from your race page</small></summary>
+    <form
+      hx-post="/analyze"
+      hx-target="#results"
+      hx-swap="innerHTML"
+      hx-indicator="#spinner"
+      hx-on:htmx:after-request="document.getElementById('race-input').removeAttribute('open')"
+    >
+      <textarea
+        id="race_data"
+        name="race_data"
+        rows="20"
+        placeholder="Paste race data here..."
+        required
+      ></textarea>
+      <button type="submit">Analyze 🏇</button>
+    </form>
+  </details>
+
+  <div id="spinner" class="htmx-indicator" aria-busy="true">
+    <p><em>Analyzing your race card, settle down…</em></p>
+  </div>
+
+  <div id="results"></div>
+</section>
+{% endblock %}

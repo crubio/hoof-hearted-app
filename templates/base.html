@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hoof Hearted 🏇</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+    <style>
+      .htmx-indicator { display: none; }
+      .htmx-request .htmx-indicator,
+      .htmx-request.htmx-indicator { display: block; }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>🏇 Hoof Hearted</h1>
+        <p>AI-powered horse racing handicapper</p>
+      </header>
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>
