@@ -20,6 +20,29 @@ def _looks_like_hallucination(text: str) -> bool:
         return True
     return False
 
+
+def _validate_input(text: str) -> None:
+    """Reject input that doesn't look like race program data before hitting the API."""
+    stripped = text.strip()
+
+    if len(stripped) < 30:
+        raise AnalyzerError(
+            "Input is too short. Please paste the full race program data including "
+            "the race header (race type, purse, distance, surface) and horse entries."
+        )
+
+    # Require at least one odds-style token — universal to any race format
+    has_odds = bool(re.search(r'M:\s*\d|\d/\d', stripped))
+    # Require at least one dollar amount — purse or earnings always present
+    has_money = bool(re.search(r'\$\d', stripped))
+
+    if not has_odds or not has_money:
+        raise AnalyzerError(
+            "Input appears incomplete. Make sure to include the full race header "
+            "(race type, purse, distance, surface) and all horse entries with "
+            "odds, speed figures, jockey/trainer percentages, and earnings."
+        )
+
 load_dotenv()
 
 SYSTEM_PROMPT = """You are an expert horse racing handicapper. You will be given raw race program data
@@ -53,17 +76,30 @@ At the end of your analysis include:
 - **Value/Overlay** — any horse where site odds are notably higher than ML that represents value.
 - **Exotic use** — which horses to include in exactas, trifectas, or superfectas (wide vs. singled).
 
+If 3 or more races are provided, also suggest:
+- **Pick 3 ticket** — best 3-race sequence, legs, combos, cost at $1 base.
+- **Pick 5 ticket** — best 5-race sequence, legs, combos, cost at $0.50 base.
+- Note that all costs are approximations — actual payouts are pari-mutuel and set at post time.
+
 Format everything in clean markdown. Be concise but analytical — think like a sharp bettor,
 not a tout. Prioritize numbers over opinions. Flag high-variance or missing-data horses clearly.
 
 IMPORTANT: Only use the data provided in the input. Do not invent statistics, horse names,
 jockey names, or any details not present in the raw data. If a field is missing, say so.
+
+If the input is missing critical race context — specifically race type, purse, distance, or
+surface — do not attempt an analysis. Instead, respond with a single short markdown paragraph
+explaining what is missing and asking the user to re-paste the complete race header and horse
+entries before you can proceed.
 """
 
 
 def analyze(raw_text: str) -> str:
+    _validate_input(raw_text)
+
     token = os.getenv("GITHUB_TOKEN")
-    model = os.getenv("MODEL", "gpt-4o")
+    dev_mode = os.getenv("DEV", "false").lower() == "true"
+    model = os.getenv("MODEL_PROTOTYPE", "gpt-4o-mini") if dev_mode else os.getenv("MODEL", "gpt-4o")
     model_upgrade = os.getenv("MODEL_UPGRADE", "gpt-5")
 
     client = OpenAI(

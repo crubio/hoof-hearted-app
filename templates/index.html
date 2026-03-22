@@ -9,7 +9,7 @@
       hx-target="#results"
       hx-swap="innerHTML"
       hx-indicator="#spinner"
-      hx-on:htmx:after-request="document.getElementById('race-input').removeAttribute('open')"
+      hx-on:htmx:after-request="document.getElementById('race-input').removeAttribute('open'); document.getElementById('spinner').style.display='none';"
     >
       <textarea
         id="race_data"
