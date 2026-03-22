@@ -10,15 +10,47 @@
     />
     <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
     <style>
+      /* ── HTMX spinner ── */
       .htmx-indicator { display: none; }
       .htmx-request .htmx-indicator,
       .htmx-request.htmx-indicator { display: block; }
 
-      /* Prevent wide tables from breaking layout */
-      #results table { display: block; overflow-x: auto; white-space: nowrap; }
+      /* ── Global box model fix ── */
+      *, *::before, *::after { box-sizing: border-box; }
 
-      /* Breathing room between input and results */
+      /* ── Prevent anything from overflowing the viewport ── */
+      body { overflow-x: hidden; }
+      .container { max-width: 100%; padding-left: 1rem; padding-right: 1rem; }
+
+      /* ── Textarea fills its column, never wider ── */
+      textarea { width: 100%; max-width: 100%; resize: vertical; }
+
+      /* ── Tables: scroll horizontally inside their container ── */
+      #results table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        border-collapse: collapse;
+      }
+
+      /* ── Code/pre blocks wrap instead of blowing out ── */
+      pre, code { white-space: pre-wrap; word-break: break-word; }
+
+      /* ── Scale down AI-generated headings inside results ── */
+      #results h1 { font-size: 1.05rem; }
+      #results h2 { font-size: 0.95rem; }
+      #results h3 { font-size: 0.9rem; }
+      #results h4, #results h5, #results h6 { font-size: 0.85rem; }
+
+      /* ── Results article shouldn't exceed viewport ── */
+      #results article { overflow-x: hidden; }
       #results { margin-top: 2rem; }
+
+      /* ── Buttons full-width on small screens ── */
+      @media (max-width: 600px) {
+        button { width: 100%; }
+      }
     </style>
   </head>
   <body>
