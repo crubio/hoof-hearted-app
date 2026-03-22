@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from openai import OpenAI, RateLimitError, AuthenticationError, APIError
 from dotenv import load_dotenv
 
@@ -129,7 +130,8 @@ entries before you can proceed.
 """
 
 
-def analyze(raw_text: str) -> str:
+def analyze(raw_text: str) -> dict:
+    """Returns a dict with keys: text, model, prompt_tokens, completion_tokens, total_tokens, elapsed_ms."""
     _validate_input(raw_text)
 
     token = os.getenv("GITHUB_TOKEN")
@@ -154,11 +156,14 @@ def analyze(raw_text: str) -> str:
     )
 
     try:
+        start = time.monotonic()
         try:
             response = client.chat.completions.create(model=model, **params)
         except RateLimitError:
             # Primary model rate-limited — retry with upgrade model
-            response = client.chat.completions.create(model=model_upgrade, **params)
+            model = model_upgrade
+            response = client.chat.completions.create(model=model, **params)
+        elapsed_ms = round((time.monotonic() - start) * 1000)
 
         content = response.choices[0].message.content or ""
 
@@ -168,7 +173,15 @@ def analyze(raw_text: str) -> str:
                 "Please try again or check your input format."
             )
 
-        return content
+        usage = response.usage
+        return {
+            "text": content,
+            "model": model,
+            "prompt_tokens": usage.prompt_tokens if usage else 0,
+            "completion_tokens": usage.completion_tokens if usage else 0,
+            "total_tokens": usage.total_tokens if usage else 0,
+            "elapsed_ms": elapsed_ms,
+        }
 
     except AnalyzerError:
         raise

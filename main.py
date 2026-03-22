@@ -21,10 +21,17 @@ async def index(request: Request):
 async def analyze_race(request: Request, race_data: str = Form(...)):
     try:
         result = analyze(race_data)
-        result_html = md.markdown(result, extensions=["tables", "nl2br"])
+        result_html = md.markdown(result["text"], extensions=["tables", "nl2br"])
         return templates.TemplateResponse(
             "partials/analysis.html",
             {"request": request, "result": result_html},
+            headers={
+                "X-Model-Used": result["model"],
+                "X-Tokens-Prompt": str(result["prompt_tokens"]),
+                "X-Tokens-Completion": str(result["completion_tokens"]),
+                "X-Tokens-Total": str(result["total_tokens"]),
+                "X-Response-Time-Ms": str(result["elapsed_ms"]),
+            },
         )
     except AnalyzerError as e:
         return templates.TemplateResponse(
