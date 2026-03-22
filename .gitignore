@@ -14,7 +14,8 @@ dist/
 build/
 
 # uv
-uv.lock
+# uv.lock — intentionally committed to pin exact versions for reproducible deploys
+# uv.lock
 
 # macOS
 .DS_Store
