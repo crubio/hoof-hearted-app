@@ -4,10 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Hoof Hearted 🏇</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png" />
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css"
     />
+    <link rel="stylesheet" href="/static/terminal.css" />
     <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
     <style>
       /* ── HTMX spinner ── */
@@ -55,6 +57,13 @@
 
       /* ── Results spacing ── */
       #results { margin-top: 2rem; overflow-x: hidden; }
+
+      /* ── Disable submit button when textarea is empty (placeholder showing) ── */
+      form:has(textarea:placeholder-shown) button[type=submit] {
+        opacity: 0.45;
+        pointer-events: none;
+        cursor: not-allowed;
+      }
 
       /* ── Buttons full-width on small screens ── */
       @media (max-width: 600px) {

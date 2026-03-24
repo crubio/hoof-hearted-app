@@ -9,6 +9,7 @@
       hx-target="#results"
       hx-swap="innerHTML"
       hx-indicator="#spinner"
+      hx-disabled-elt="find button[type=submit]"
       hx-on:htmx:after-request="document.getElementById('race-input').removeAttribute('open'); document.getElementById('spinner').style.display='none';"
     >
       <textarea
