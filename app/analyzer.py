@@ -1,8 +1,17 @@
 import os
 import re
 import time
+import json
+from typing import Dict, Any, Optional
 from openai import OpenAI, RateLimitError, AuthenticationError, APIError
 from dotenv import load_dotenv
+
+load_dotenv()
+
+TOKEN = os.getenv("GITHUB_TOKEN")
+DEV_MODE = os.getenv("DEV", "false").lower() == "true"
+LLM = os.getenv("MODEL_PROTOTYPE", "gpt-4o-mini") if DEV_MODE else os.getenv("MODEL", "gpt-4o")
+LLM_UPGRADE = os.getenv("MODEL_UPGRADE", "gpt-5")
 
 
 class AnalyzerError(Exception):
@@ -42,8 +51,8 @@ def _validate_input(text: str) -> None:
             "post positions and morning line odds (e.g. M: 5/2)."
         )
 
-load_dotenv()
-
+# This prompt is for the all in one python app that renders templating based on markdown returned
+# from analysis. This is deprecated but can still be used as a standalone app if spun up that way.
 SYSTEM_PROMPT = """You are an expert horse racing handicapper. You will be given raw race program
 data copied from a race-day program page.
 
@@ -90,32 +99,22 @@ Scratches may be indicated in the data.
 
 For each race, return markdown with:
 
-1. **Race header** — include all available: track, race #, race type, purse, distance, surface,
+1. **Selections** — top 3 horses with brief justification. If data is thin (basic view only),
+   weight jockey/trainer records and odds movement heavily.
+2. **Single** — one horse to anchor multi-race bets, only if clearly justified.
+3. **Race header** — include all available: track, race #, race type, purse, distance, surface,
    conditions. Note any fields not provided.
-2. **Data available** — one line listing which views were detected (by their column headers) and
+4. **Data available** — one line listing which views were detected (by their column headers) and
    any key fields absent. Sets expectations for analysis depth.
-3. **Horse-by-horse breakdown** — analyze only the fields present. Note standout positives and
+5. **Horse-by-horse breakdown** — analyze only the fields present. Note standout positives and
    negatives across whatever is available: speed/pace figure trends, class ratings, prime power,
    run style matchup, jockey/trainer records, days off, equipment changes, expert angles, and
-   overlays (site odds significantly higher than ML = value).
-4. **Key angles** — based on available data:
-   - Speed or pace figure trends (improving, declining, flat) if present
-   - Pace scenario (lone speed, contested, closers' race) if run style or pace data present
-   - Overlays: ML vs site odds divergence
-   - Equipment, layoff, or angle flags if present
-5. **Selections** — top 3 horses with brief justification. If data is thin (basic view only),
-   weight jockey/trainer records and odds movement heavily.
-6. **Single** — one horse to anchor multi-race bets, only if clearly justified.
+   overlays (site odds significantly higher than ML = value). Distill into one or two concise sentences per horse.
 
 At the end include:
 - **Win bet** — the single strongest horse and why, if one clearly stands out.
 - **Value/Overlay** — any horse where site odds are notably higher than ML that represents value.
 - **Exotic use** — which horses to include in exactas, trifectas, or superfectas (wide vs. singled).
-
-If 3 or more races are provided, also suggest:
-- **Pick 3 ticket** — best 3-race sequence, legs, combos, cost at $1 base.
-- **Pick 5 ticket** — best 5-race sequence, legs, combos, cost at $0.50 base.
-- Note that all costs are approximations — actual payouts are pari-mutuel and set at post time.
 
 Format everything in clean markdown. Be concise but analytical — think like a sharp bettor,
 not a tout. Prioritize numbers over opinions. Flag high-variance or missing-data horses clearly.
@@ -129,15 +128,105 @@ explaining what is missing and asking the user to re-paste the complete race hea
 entries before you can proceed.
 """
 
+# This the prompt for json driven analysis. This data comes directly from the API and should not
+# require any user copy/pasta. We assume the model can understand JSON.
+PROGRAM_ANALYSIS_PROMPT = """You are an expert horse racing handicapper analyzing structured race data from TwinSpires.
+
+Analyze the race program JSON and provide:
+
+1. **Selections** — top 3 horses to bet, with data-driven justification based on:
+   - Speed figures, pace analysis, and recent form
+   - Class ratings and competition level
+   - Jockey/trainer statistics and win percentages
+   - Value overlays (current odds vs. expected probability)
+   - Running style and pace matchup
+
+2. **Win bet** — single strongest horse if one clearly stands out, with reasoning
+3. **Value plays** — horses where odds represent value based on their chances
+4. **Exotic recommendations** — exacta, trifecta, superfecta suggestions (who to key, spread, single)
+
+Format in clean markdown. Be concise and analytical. Focus on the data provided.
+If critical fields are missing (speed figures, odds, recent races), note it explicitly.
+
+IMPORTANT: Only analyze data present in the JSON. Do not invent statistics or horse details."""
+
+
+def analyze_program_json(program_json: Dict[str, Any]) -> dict:
+    """Analyze structured race program data in JSON format. Returns dict with keys: text, model, prompt_tokens, completion_tokens, total_tokens, elapsed_ms."""
+    token = TOKEN
+    model = LLM
+    model_upgrade = LLM_UPGRADE
+
+    client = OpenAI(
+      base_url="https://models.inference.ai.azure.com",
+      api_key=token,
+    )
+
+    filtered_data = _filter_program_data(program_json)
+
+    user_message = f"Analyze this race and provide betting recommendations:\n\n```json\n{json.dumps(filtered_data, indent=2)}\n```"
+
+    messages = [
+        {"role": "system", "content": PROGRAM_ANALYSIS_PROMPT},
+        {"role": "user", "content": user_message}
+    ]
+    
+    params = {
+        "messages": messages,
+        "temperature": 0.3,
+        "max_tokens": 3000,
+    }
+
+    try:
+        start = time.monotonic()
+        try:
+            response = client.chat.completions.create(model=model, **params)
+        except RateLimitError:
+            # Primary model rate-limited — retry with upgrade model
+            model = model_upgrade
+            response = client.chat.completions.create(model=model, **params)
+        elapsed_ms = round((time.monotonic() - start) * 1000)
+
+        content = response.choices[0].message.content or ""
+
+        if _looks_like_hallucination(content):
+            raise AnalyzerError(
+                "The model returned an unexpected response. "
+                "Please try again or check the input data for completeness."
+            )
+
+        usage = response.usage
+        return {
+            "text": content,
+            "model": model,
+            "prompt_tokens": usage.prompt_tokens if usage else 0,
+            "completion_tokens": usage.completion_tokens if usage else 0,
+            "total_tokens": usage.total_tokens if usage else 0,
+            "elapsed_ms": elapsed_ms,
+        }
+    except AnalyzerError:
+        raise
+    except AuthenticationError:
+        raise AnalyzerError(
+            "Auth failed"
+        )
+    except RateLimitError:
+        raise AnalyzerError(
+            "Models are rate-limited. Try again later."
+        )
+    except APIError as e:
+        raise AnalyzerError(f"API error: {e.message}")
+    except Exception as e:
+        raise AnalyzerError(f"Unexpected error: {str(e)}")  
 
 def analyze(raw_text: str) -> dict:
     """Returns a dict with keys: text, model, prompt_tokens, completion_tokens, total_tokens, elapsed_ms."""
     _validate_input(raw_text)
 
-    token = os.getenv("GITHUB_TOKEN")
-    dev_mode = os.getenv("DEV", "false").lower() == "true"
-    model = os.getenv("MODEL_PROTOTYPE", "gpt-4o-mini") if dev_mode else os.getenv("MODEL", "gpt-4o")
-    model_upgrade = os.getenv("MODEL_UPGRADE", "gpt-5")
+    token = TOKEN
+    dev_mode = DEV_MODE
+    model = LLM
+    model_upgrade = LLM_UPGRADE
 
     client = OpenAI(
         base_url="https://models.inference.ai.azure.com",
@@ -198,3 +287,174 @@ def analyze(raw_text: str) -> dict:
         raise AnalyzerError(f"API error: {e.message}")
     except Exception as e:
         raise AnalyzerError(f"Unexpected error: {str(e)}")
+
+def _filter_program_data(program_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Strip noise from raw TwinSpires program JSON before sending to LLM.
+    Keeps only handicapping-relevant fields to reduce token usage.
+    """
+    race = program_data.get("race", {})
+    track = program_data.get("track", {})
+
+    filtered = {
+        "track": {
+            "name": track.get("trackName"),
+            "country": track.get("country"),
+            "raceDate": track.get("raceDate"),
+        },
+        "race": {
+            "raceNumber": race.get("raceNumber"),
+            "raceType": race.get("raceType"),
+            "raceCondition": race.get("raceCondition"),
+            "purse": race.get("purse"),
+            "distance": race.get("distanceFormatted"),
+            "surface": race.get("surface"),
+            "ageRestriction": race.get("ageRestriction"),
+            "claimingPrice": race.get("claimingPrice"),
+            "speedPar": race.get("speedPar"),
+            "pacePars": {
+                "early1": race.get("paceParEarly1"),
+                "early2": race.get("paceParEarly2"),
+                "late": race.get("paceParLatePace"),
+            },
+            "programSelections": race.get("programSelections"),
+            # Track bias — very useful context for the model
+            "trackBias": {
+                "speedBias": race.get("meetSpeedBias"),        # >70 = strong speed bias
+                "wireToWire": race.get("meetWireToWire"),      # % front runners winning
+                "winByOddsZone": {
+                    "short": race.get("winPerShort"),          # <5/2
+                    "mid": race.get("winPerMid"),              # 5/2-9/1
+                    "long": race.get("winPerLong"),            # 10/1+
+                },
+                "runStyleImpact": {
+                    "E":  {"impact": race.get("meetRs1Impact"),  "pct": race.get("meetRs1Percent"),  "flag": race.get("meetRs1Plusser")},
+                    "EP": {"impact": race.get("meetRs2Impact"),  "pct": race.get("meetRs2Percent"),  "flag": race.get("meetRs2Plusser")},
+                    "P":  {"impact": race.get("meetRs3Impact"),  "pct": race.get("meetRs3Percent"),  "flag": race.get("meetRs3Plusser")},
+                    "S":  {"impact": race.get("meetRs4Impact"),  "pct": race.get("meetRs4Percent"),  "flag": race.get("meetRs4Plusser")},
+                },
+                "postPositionImpact": {
+                    "PP1": {"impact": race.get("meetPost1Impact"), "flag": race.get("meetPost1Plusser")},
+                    "PP2": {"impact": race.get("meetPost2Impact"), "flag": race.get("meetPost2Plusser")},
+                    "PP3": {"impact": race.get("meetPost3Impact"), "flag": race.get("meetPost3Plusser")},
+                    "PP4+": {"impact": race.get("meetPost4Impact"), "flag": race.get("meetPost4Plusser")},
+                },
+            },
+        },
+        "runners": [],
+    }
+
+    for interest in race.get("interest", []):
+        ml_odds = interest.get("morningLineOdds")
+        for r in interest.get("runner", []):
+            if r.get("scratchIndicator") == "Y":
+                continue  # skip scratches
+
+            # Detect surface switchers (prior races on turf when today is dirt)
+            surface_switches = [
+                r.get(f"surface{i}Back") for i in range(1, 5)
+                if r.get(f"surface{i}Back") is not None
+            ]
+
+            runner = {
+                # Identity
+                "programNumber": r.get("programNumber"),
+                "horseName": r.get("horseName"),
+                "postPosition": r.get("postPosition"),
+                "morningLineOdds": ml_odds,
+                "sex": r.get("sex"),
+                "age": 2026 - r.get("yearOfBirth", 2026) if r.get("yearOfBirth") else None,
+                "medication": r.get("medication"),
+                "weight": r.get("weight"),
+                "apprenticeAllowance": r.get("apprenticeWeightAllowance"),
+
+                # Speed figures
+                "speed": {
+                    "avgSpeed": r.get("avgSpeed"),
+                    "avgSpeedRank": r.get("avgSpeedRank"),
+                    "avgSpeedLast3": r.get("avgSpeedLast3"),
+                    "backSpeed": r.get("backSpeed"),           # best speed ever (Brisnet)
+                    "backSpeedRank": r.get("backSpeedRank"),
+                    "speedLastRace": r.get("speedLastRace"),
+                    "speedLastRaceRank": r.get("speedLastRaceRank"),
+                    "recentSpeeds": [                          # chronological: 1Back = most recent
+                        r.get("finalSpeed1Back"),
+                        r.get("finalSpeed2Back"),
+                        r.get("finalSpeed3Back"),
+                        r.get("finalSpeed4Back"),
+                    ],
+                },
+
+                # Pace figures
+                "pace": {
+                    "avgE1": r.get("averagePaceE1"),
+                    "avgE2": r.get("averagePaceE2"),
+                    "avgLate": r.get("averagePaceLp"),
+                    "bestE1atDistSurf": r.get("bestSpeedE1AtDistanceSurface"),
+                    "bestE2atDistSurf": r.get("bestSpeedE2AtDistanceSurface"),
+                },
+
+                # Class
+                "class": {
+                    "primePower": r.get("primePower"),
+                    "primePowerRank": r.get("primePowerRank"),
+                    "avgClass": r.get("averageClass"),
+                    "avgClassRank": r.get("averageClassRank"),
+                    "currentClass": r.get("currentClass"),
+                    "lastClass": r.get("lastClass"),
+                    "raceRatings": [
+                        r.get("raceRating1Back"),
+                        r.get("raceRating2Back"),
+                        r.get("raceRating3Back"),
+                    ],
+                    "horseClaimPrice": r.get("horseClaimPrice"),  # vs race claimingPrice = class drop/rise
+                },
+
+                # Form / fitness
+                "form": {
+                    "daysOff": r.get("daysOff"),
+                    "speedPoints": r.get("speedPoints"),       # early speed measure (0-8)
+                    "priorRunStyle": r.get("priorRunStyle"),   # E, E/P, P, S, NA
+                    "distSurfaceFit": [                        # True = same dist/surface as today
+                        r.get("sameDistanceSurface1Back"),
+                        r.get("sameDistanceSurface2Back"),
+                        r.get("sameDistanceSurface3Back"),
+                    ],
+                    "priorSurfaces": surface_switches or None,  # flag turf-to-dirt switches
+                    "mudSpeed": r.get("mudSpeed") or None,
+                    "totalEarnings": r.get("totalEarnings"),
+                    "earningsRank": r.get("totalEarningsRank"),
+                },
+
+                # Connections
+                "jockey": {
+                    "name": f"{r.get('jockeyFirstName', '')} {r.get('jockeyLastName', '')}".strip(),
+                    "winPct": r.get("jockeyWinPercent"),
+                    "winPctRank": r.get("jockeyWinPercentRank"),
+                    "wins": r.get("jockeyWins"),
+                    "starts": r.get("jockeyStarts"),
+                },
+                "trainer": {
+                    "name": f"{r.get('trainerFirstName', '')} {r.get('trainerLastName', '')}".strip(),
+                    "winPct": r.get("trainerWinPercent"),
+                    "winPctRank": r.get("trainerWinPercentRank"),
+                    "wins": r.get("trainerWins"),
+                    "starts": r.get("trainerStarts"),
+                },
+
+                # Model probability (Brisnet Power Rating)
+                "model": {
+                    "plProbability": r.get("plProbability"),   # win probability 0-1
+                    "plFairValueOdds": r.get("plFairValueOdds"),
+                    "plPredScore": r.get("plPredScore"),
+                    "plMaxOdds": r.get("plMaxOdds"),           # fade above this
+                    "plSuperValueOdds": r.get("plSuperValueOdds"),  # strong value threshold
+                },
+
+                # Breeding (only meaningful context)
+                "sire": r.get("sire"),
+                "dam": r.get("dam"),
+            }
+            filtered["runners"].append(runner)
+
+    return filtered

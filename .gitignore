@@ -3,6 +3,7 @@
 
 # Docs / planning
 docs/
+data/
 
 # Python
 __pycache__/
