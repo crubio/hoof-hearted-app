@@ -23,7 +23,7 @@ export default function TrackList({ tracks }: Props) {
       {allClosed && (
         <div className="terminal-alert terminal-alert-warning">
           All tracks closed right now. Check back later.
-      </div>
+        </div>
       )}
       {filtered.map(track => (
         <TrackRow key={track.brisCode} track={track} />

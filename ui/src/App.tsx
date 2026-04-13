@@ -10,6 +10,8 @@ export default function App() {
     refetchInterval: 60_000,
   })
 
+  const noRacesToday = tracks.length === 0
+
   return (
     <div className="container">
       <header>
@@ -19,6 +21,11 @@ export default function App() {
       <main>
         {isLoading && <p>Fetching today's tracks...</p>}
         {isError && <p className="error">Error: {(error as Error).message}</p>}
+        {noRacesToday && (
+          <div className="terminal-alert terminal-alert-warning">
+            No races today. Check back later.
+          </div>
+        )}
         {tracks && <TrackList tracks={tracks} />}
       </main>
     </div>
