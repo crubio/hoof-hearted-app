@@ -4,6 +4,7 @@ import json
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
 from app.scraper import get_todays_tracks, check_api_health, get_track_and_race_program
 
 from app.analyzer import analyze, analyze_program_json, AnalyzerError
@@ -29,6 +30,16 @@ Horse racing analysis API powered by publicly available program data and AI.
     },
     docs_url="/docs",
     redoc_url="/redoc",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server
+        "http://localhost:4173",  # Vite preview
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")

@@ -1,0 +1,69 @@
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.track-row {
+  border: 1px solid var(--terminal-color);
+  padding: 1rem;
+}
+
+.track-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.track-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.track-name {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.track-detail {
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+.track-status {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid currentColor;
+}
+
+.track-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.error {
+  color: red;
+}
+
+.pending {
+  opacity: 0.7;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.analysis-output {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--terminal-color);
+}

@@ -2,9 +2,9 @@
 @import url('https://cdn.staticdelivr.com/gfonts/css2?family=Fira+Code:wght@300..700&display=swap');
 
 :root {
-  --background: #0d0d0d;  /* pure dark */
-  --foreground: #f0f0f0;  /* brighter white */
-  --accent: #32858b;      /* keep teal or swap */
+  --background: #1a170f;
+  --foreground: #eceae5;
+  --accent: #32858b;
   --radius: 0;
   --font-size: 1rem;
   --line-height: 1.54em;
@@ -39,7 +39,7 @@ body {
   font-variant-ligatures: contextual;
   -webkit-overflow-scrolling: touch;
   -webkit-text-size-adjust: 100%;
-  margin: 0 auto;
+  margin: 0;
   padding: 0;
 }
 
