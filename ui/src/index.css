@@ -67,3 +67,15 @@
   padding-top: 1rem;
   border-top: 1px solid var(--terminal-color);
 }
+
+.terminal-alert-warning {
+  color: #f5a623;  /* warm yellow, readable on dark bg */
+  border-color: transparent;
+  background-color: transparent;
+}
+
+.terminal-alert-error {
+  color: #e74c3c;
+  border-color: #e74c3c;
+  background-color: transparent;
+}

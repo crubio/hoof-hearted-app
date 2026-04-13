@@ -21,7 +21,9 @@ export default function TrackList({ tracks }: Props) {
   return (
     <div className="track-list">
       {allClosed && (
-        <p>All tracked closed right now. Check back later</p>
+        <div className="terminal-alert terminal-alert-warning">
+          All tracks closed right now. Check back later.
+      </div>
       )}
       {filtered.map(track => (
         <TrackRow key={track.brisCode} track={track} />

@@ -14,7 +14,7 @@ export default function App() {
     <div className="container">
       <header>
         <h1>🏇 Hoof Hearted - AI handicapping analysis</h1>
-        <p>Today's races — {new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+        <h2>Today's races — {new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
       </header>
       <main>
         {isLoading && <p>Fetching today's tracks...</p>}
