@@ -10,7 +10,7 @@ export default function App() {
     refetchInterval: 60_000,
   })
 
-  const noRacesToday = tracks.length === 0
+  const noRacesToday = tracks && tracks.length === 0
 
   return (
     <div className="container">
