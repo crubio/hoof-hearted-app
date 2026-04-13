@@ -1,6 +1,7 @@
 import markdown as md
 from fastapi import FastAPI, Form, Request
 import json
+import os
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -32,12 +33,15 @@ Horse racing analysis API powered by publicly available program data and AI.
     redoc_url="/redoc",
 )
 
+origins = [
+    "http://localhost:5173",
+    "http://localhost:4173",
+    *os.getenv("ALLOWED_ORIGINS", "").split(","),  # comma-separated list
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:4173",  # Vite preview
-    ],
+    allow_origins=[o for o in origins if o],  # filter out empty strings
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
