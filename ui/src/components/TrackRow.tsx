@@ -71,12 +71,16 @@ export default function TrackRow({ track }: Props) {
       )}
 
       {isPending && (
-        <p className="pending">⏳ Running AI analysis — this takes 5–10 seconds...</p>
+        <p className="pending"><strong>Running AI analysis — this takes 5–10 seconds...</strong></p>
       )}
 
       {analysis && expanded && (
         <div className="analysis-output">
-          <ReactMarkdown>{analysis}</ReactMarkdown>
+          <ReactMarkdown
+            disallowedElements={['ol']}
+          >
+            {analysis}
+          </ReactMarkdown>
         </div>
       )}
     </div>
