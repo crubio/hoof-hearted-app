@@ -2,6 +2,7 @@ import os
 import re
 import time
 import json
+from datetime import date
 from typing import Dict, Any, Optional
 from openai import OpenAI, RateLimitError, AuthenticationError, APIError
 from dotenv import load_dotenv
@@ -12,6 +13,11 @@ TOKEN = os.getenv("GITHUB_TOKEN")
 DEV_MODE = os.getenv("DEV", "false").lower() == "true"
 LLM = os.getenv("MODEL_PROTOTYPE", "gpt-4o-mini") if DEV_MODE else os.getenv("MODEL", "gpt-4o")
 LLM_UPGRADE = os.getenv("MODEL_UPGRADE", "gpt-5")
+
+
+def _current_year() -> int:
+    """Racing age is calendar year minus foaling year, so this must not be hardcoded."""
+    return date.today().year
 
 
 class AnalyzerError(Exception):
@@ -363,7 +369,7 @@ def _filter_program_data(program_data: Dict[str, Any]) -> Dict[str, Any]:
                 "postPosition": r.get("postPosition"),
                 "morningLineOdds": ml_odds,
                 "sex": r.get("sex"),
-                "age": 2026 - r.get("yearOfBirth", 2026) if r.get("yearOfBirth") else None,
+                "age": _current_year() - r["yearOfBirth"] if r.get("yearOfBirth") else None,
                 "medication": r.get("medication"),
                 "weight": r.get("weight"),
                 "apprenticeAllowance": r.get("apprenticeWeightAllowance"),

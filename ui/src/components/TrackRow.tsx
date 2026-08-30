@@ -76,11 +76,7 @@ export default function TrackRow({ track }: Props) {
 
       {analysis && expanded && (
         <div className="analysis-output">
-          <ReactMarkdown
-            disallowedElements={['ol']}
-          >
-            {analysis}
-          </ReactMarkdown>
+          <ReactMarkdown>{analysis}</ReactMarkdown>
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import date
 
 
@@ -15,6 +15,7 @@ FILTERED_TRACKS = {
     "kee": "Keeneland",
     "aqu": "Aqueduct",
     "op": "Oaklawn Park",
+    "dmr": "Del Mar"
 }
 
 
@@ -108,7 +109,7 @@ async def get_todays_tracks() -> List[Dict[str, Any]]:
         
         return filtered_data
 
-async def get_track_and_race_program(track_id: str, race_n: int = 1, date: str = date.today().isoformat()) -> Dict[str, Any]:
+async def get_track_and_race_program(track_id: str, race_n: int = 1, race_date: Optional[str] = None) -> Dict[str, Any]:
     """
     Fetch the program json for a track. This is valid the day fetched.
 
@@ -121,8 +122,10 @@ async def get_track_and_race_program(track_id: str, race_n: int = 1, date: str =
     Returns:
         Dict containing detailed track program information.
     """
-    print(f"Fetching program for track_id={track_id}, race_n={race_n}, date={date}")
-    url = f"{TWINSPIRES_BASE_URL}/apigw/cdux-program-api/programs/racedate/{date}/track/{track_id}/type/TB/race/{race_n}"
+    # Resolve per-call, not at import — a long-running server must not pin to its boot date.
+    race_date = race_date or date.today().isoformat()
+    print(f"Fetching program for track_id={track_id}, race_n={race_n}, date={race_date}")
+    url = f"{TWINSPIRES_BASE_URL}/apigw/cdux-program-api/programs/racedate/{race_date}/track/{track_id}/type/TB/race/{race_n}"
     async with httpx.AsyncClient(timeout=TIMEOUT, headers=HEADERS) as client:
         response = await client.get(url)
         response.raise_for_status()
