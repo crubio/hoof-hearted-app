@@ -170,7 +170,7 @@ def analyze_program_json(program_json: Dict[str, Any]) -> dict:
 
     filtered_data = _filter_program_data(program_json)
 
-    user_message = f"Analyze this race and provide betting recommendations:\n\n```json\n{json.dumps(filtered_data, indent=2)}\n```"
+    user_message = f"Analyze this race and provide betting recommendations:\n\n```json\n{json.dumps(filtered_data, indent=2, separators=(",", ":"))}\n```"
 
     messages = [
         {"role": "system", "content": PROGRAM_ANALYSIS_PROMPT},

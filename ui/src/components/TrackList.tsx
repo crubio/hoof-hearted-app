@@ -1,7 +1,7 @@
 import type { Track } from '../types'
 import TrackRow from './TrackRow'
 
-const ALLOWED_TRACKS = ['sa', 'kee', 'aqu', 'op', 'cd']
+const ALLOWED_TRACKS = ['sa', 'kee', 'aqu', 'op', 'cd', 'dmr']
 
 interface Props {
   tracks: Track[]
