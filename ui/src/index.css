@@ -16,7 +16,7 @@ strong {
 }
 
 .track-row {
-  border: 1px solid var(--terminal-color);
+  border: 1px solid var(--foreground);
   padding: 1rem;
 }
 
@@ -70,7 +70,34 @@ strong {
 .analysis-output {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--terminal-color);
+  border-top: 1px solid var(--foreground);
+}
+
+.race-picker {
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9rem;
+  border: 1px solid currentColor;
+  padding: 0.1rem 0.3rem;
+}
+
+.badge {
+  font-size: 0.8rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid currentColor;
+}
+
+.badge--pending {
+  color: #f5a623;
+}
+
+.badge--error {
+  color: #e74c3c;
+}
+
+.badge--success {
+  color: var(--accent);
 }
 
 .terminal-alert-warning {

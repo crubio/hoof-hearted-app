@@ -1,9 +1,12 @@
 # Environment
 .env
 
-# Docs / planning
+# Docs / planning (hoof-hearted-plan.md holds a PAT -- keep this whole dir out of git)
 docs/
-data/
+
+# NOTE: app/data/sample_program.json is a committed test fixture, not scratch data --
+# this rule is scoped to a root-level data/ dir only so it doesn't also catch app/data/.
+/data/
 
 # Python
 __pycache__/

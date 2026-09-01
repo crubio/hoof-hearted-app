@@ -4,7 +4,8 @@ import type { Track } from './types'
 import { fetchTracks } from './api'
 
 export default function App() {
-  const { data: tracks, isLoading, isError, error, isPending } = useQuery<Track[]>({
+  // isPending (no data yet) implies isLoading in TanStack Query v5 -- isLoading is redundant here.
+  const { data: tracks, isError, error, isPending } = useQuery<Track[]>({
     queryKey: ['tracks'],
     queryFn: fetchTracks,
     refetchInterval: 60_000,
@@ -19,7 +20,7 @@ export default function App() {
         <h2>Today's races — {new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</h2>
       </header>
       <main>
-        {isLoading || isPending && <p>Fetching today's tracks...</p>}
+        {isPending && <p>Fetching today's tracks...</p>}
         {isError && <p className="error">Error: {(error as Error).message}</p>}
         {noRacesToday && (
           <div className="terminal-alert terminal-alert-warning">

@@ -10,11 +10,18 @@ export async function fetchTracks(): Promise<Track[]> {
   return data
 }
 
-export async function fetchProgram(trackId: string, raceN: number): Promise<void> {
-  await api.get(`/program/${trackId}/${raceN}`)
-}
-
 export async function fetchAnalysis(trackId: string, raceN: number): Promise<AnalysisResult> {
-  const { data } = await api.post<AnalysisResult>(`/analyze/${trackId}/${raceN}`)
-  return data
+  try {
+    const { data } = await api.post<AnalysisResult>(`/analyze/${trackId}/${raceN}`)
+    return data
+  } catch (err) {
+    // The backend now returns a real 4xx/5xx with {"error": "..."} on failure (rate limit,
+    // auth, upstream error, etc.) instead of a 200 with a blank result -- surface that
+    // message instead of axios's generic "Request failed with status code 429".
+    if (axios.isAxiosError(err)) {
+      const message = (err.response?.data as { error?: string } | undefined)?.error
+      if (message) throw new Error(message)
+    }
+    throw err
+  }
 }

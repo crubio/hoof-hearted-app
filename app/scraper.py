@@ -1,9 +1,22 @@
 import httpx
 from typing import List, Dict, Any, Optional
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 
 TWINSPIRES_BASE_URL = "https://www.twinspires.com"
+
+# US racetracks -- and the "today" this app cares about -- run on Pacific time. Using this
+# explicit zone (rather than the server's local time via date.today()) is deliberate:
+# "deployed in Pacific" describes the datacenter region, not the OS clock, which almost every
+# cloud platform defaults to UTC regardless of region. A named IANA zone also handles the
+# PST/PDT (-0800/-0700) Daylight Saving switch automatically -- a fixed offset would not.
+RACETRACK_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def todays_race_date() -> str:
+    """Today's date in the racetrack's own timezone (Pacific), as YYYY-MM-DD."""
+    return datetime.now(RACETRACK_TZ).date().isoformat()
 TODAYS_TRACKS_URL = f"{TWINSPIRES_BASE_URL}/adw/todays-tracks?affid=2800&sortOrder=nextUp"
 TRACK_PROGRAM_URL_TEMPLATE = f"{TWINSPIRES_BASE_URL}/adw/track/{{track_id}}/program?affid=2800"
 TIMEOUT = 10.0  # seconds
@@ -99,14 +112,15 @@ async def get_todays_tracks() -> List[Dict[str, Any]]:
         response.raise_for_status()
         
         data = response.json()
+
+        if not isinstance(data, list):
+            raise ValueError(f"Unexpected response format, got {type(data).__name__}")
+
         filtered_data = [
             track for track in data
             if track.get("brisCode", "").lower() in FILTERED_TRACKS
         ]
 
-        if not isinstance(data, list):
-            raise ValueError(f"Unexpected response format, got {type(data).__name__}")
-        
         return filtered_data
 
 async def get_track_and_race_program(track_id: str, race_n: int = 1, race_date: Optional[str] = None) -> Dict[str, Any]:
@@ -123,7 +137,7 @@ async def get_track_and_race_program(track_id: str, race_n: int = 1, race_date: 
         Dict containing detailed track program information.
     """
     # Resolve per-call, not at import — a long-running server must not pin to its boot date.
-    race_date = race_date or date.today().isoformat()
+    race_date = race_date or todays_race_date()
     print(f"Fetching program for track_id={track_id}, race_n={race_n}, date={race_date}")
     url = f"{TWINSPIRES_BASE_URL}/apigw/cdux-program-api/programs/racedate/{race_date}/track/{track_id}/type/TB/race/{race_n}"
     async with httpx.AsyncClient(timeout=TIMEOUT, headers=HEADERS) as client:

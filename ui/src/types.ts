@@ -38,7 +38,7 @@ export interface Track {
 }
 
 export interface AnalysisResult {
-  success: boolean
+  success: true
   meta: {
     track: string
     race: number
@@ -52,4 +52,12 @@ export interface AnalysisResult {
     elapsed_ms: number
   }
   analysis: string
+}
+
+// Shape returned by POST /analyze/{track}/{race} on failure (rate limit, auth, upstream
+// error, etc.) alongside a real 4xx/5xx status -- api.ts converts this into a thrown Error
+// before it reaches a component, but the shape is documented here for reference.
+export interface AnalysisErrorResponse {
+  success: false
+  error: string
 }

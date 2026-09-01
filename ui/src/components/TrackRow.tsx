@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
-import { fetchProgram, fetchAnalysis } from '../api'
+import { fetchAnalysis } from '../api'
 import type { Track } from '../types'
 
 interface Props {
@@ -9,37 +9,44 @@ interface Props {
 }
 
 export default function TrackRow({ track }: Props) {
-  const [analysis, setAnalysis] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(true)
-
   const trackId = track.brisCode.toLowerCase()
-  const raceN = track.currentRaceNumber
+  // track.races is typed as required, but the upstream payload is passed through largely
+  // unvalidated -- default to {} so a track missing it degrades to "no races" instead of
+  // throwing out of Object.values and blanking the whole app.
+  const raceList = Object.values(track.races ?? {}).sort((a, b) => a.raceNumber - b.raceNumber)
 
-  // dig into races to find the current race for post time + meta
-  const currentRace = Object.values(track.races).find(
-    r => r.raceNumber === raceN
-  ) ?? Object.values(track.races)[0]
+  // All hooks are called unconditionally, every render -- any early return lives below them.
+  const [selectedRaceN, setSelectedRaceN] = useState(track.currentRaceNumber)
+  const [expanded, setExpanded] = useState(true)
+  // The analyzed text is stored alongside the race number it describes. Without that pairing,
+  // a poll that advances track.currentRaceNumber (or the user picking a different race) would
+  // keep showing the previous race's stale selections under the new race's header.
+  const [result, setResult] = useState<{ raceN: number; text: string } | null>(null)
 
-  if (!currentRace) return null
+  const selectedRace = raceList.find(r => r.raceNumber === selectedRaceN) ?? raceList[0]
 
-  const postTime = currentRace?.postTime
-    ? new Date(currentRace.postTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const { mutate: analyze, isPending, isError, error } = useMutation({
+    // POST /analyze/{track}/{race} already fetches+caches the program on a cache miss, so
+    // there's no need to call /program first -- that was a fully redundant round trip.
+    mutationFn: () => fetchAnalysis(trackId, selectedRaceN),
+    onSuccess: (data) => {
+      setResult({ raceN: selectedRaceN, text: data.analysis })
+      setExpanded(true)
+    },
+  })
+
+  if (!selectedRace) return null
+
+  const postTime = selectedRace.postTime
+    ? new Date(selectedRace.postTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : 'TBD'
 
-  const { mutate: analyze, isPending, isError, error, isSuccess } = useMutation({
-    mutationFn: async () => {
-      await fetchProgram(trackId, raceN)
-      return fetchAnalysis(trackId, raceN)
-    },
-    onSuccess: (data) => {
-      setAnalysis(data.analysis)
-      setExpanded(true)}
-  })
+  const analysis = result && result.raceN === selectedRaceN ? result.text : null
 
   const statusBadge = () => {
     if (isPending) return <span className="badge badge--pending">⏳ Analyzing...</span>
     if (isError)   return <span className="badge badge--error">✗ Failed</span>
-    if (isSuccess) return <span className="badge badge--success">✓ Analyzed</span>
+    if (analysis)  return <span className="badge badge--success">✓ Analyzed</span>
     return null
   }
 
@@ -48,7 +55,22 @@ export default function TrackRow({ track }: Props) {
       <div className="track-header">
         <div className="track-meta">
           <span className="track-name">{track.name}</span>
-          <span className="track-detail">Race {raceN}</span>
+          {raceList.length > 1 ? (
+            <select
+              className="race-picker"
+              value={selectedRaceN}
+              onChange={e => setSelectedRaceN(Number(e.target.value))}
+              aria-label="Race number"
+            >
+              {raceList.map(r => (
+                <option key={r.raceNumber} value={r.raceNumber}>
+                  Race {r.raceNumber}{r.raceNumber === track.currentRaceNumber ? ' (current)' : ''}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="track-detail">Race {selectedRaceN}</span>
+          )}
           <span className="track-detail">Post {postTime}</span>
           <span className="track-status">{track.status}</span>
           {statusBadge()}
@@ -62,7 +84,6 @@ export default function TrackRow({ track }: Props) {
           <button onClick={() => analyze()} disabled={isPending}>
             {isPending ? 'Analyzing...' : analysis ? 'Re-analyze' : 'Analyze'}
           </button>
-
         </div>
       </div>
 
@@ -71,7 +92,7 @@ export default function TrackRow({ track }: Props) {
       )}
 
       {isPending && (
-        <p className="pending"><strong>Running AI analysis — this takes 5–10 seconds...</strong></p>
+        <p className="pending"><strong>Running AI analysis — free-tier models can take 20–40 seconds...</strong></p>
       )}
 
       {analysis && expanded && (
